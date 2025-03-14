@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import { categorizeError } from "../services/categorizationService";
 
 export interface ProcessedError {
+  channelId:string,
   message: string;
   type: string;
   priority: string;
@@ -18,9 +19,9 @@ export const handleIncomingError = (
   next: NextFunction
 ): void => {
   try {
-    const { message, stack } = req.body;
+    const { message, stack, channelId } = req.body;
 
-    if (!message || !stack) {
+    if (!message || !stack || channelId ) {
       res.status(400).json({ error: "Invalid error report format." });
       return;
     }
@@ -28,6 +29,7 @@ export const handleIncomingError = (
     const severity = categorizeError(message);
 
     lastProcessedError = {
+      channelId,
       message,
       type: "Error",
       priority: severity,
