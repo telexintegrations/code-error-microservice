@@ -34,7 +34,7 @@ export const handleIncomingError = (
       extra: { timestamp: new Date().toISOString() },
     };
 
-    console.log(`[Processed Error] Severity: ${severity}, Message: ${message}`);
+    // console.log(`[Processed Error] Severity: ${severity}, Message: ${message}`);
 
     res.status(202).json({ status: "accepted" }); 
 

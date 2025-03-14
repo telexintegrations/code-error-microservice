@@ -4,12 +4,26 @@ import { getLastProcessedError, ProcessedError } from "../controllers/errorContr
 
 const router = Router();
 
+const webhookUrl = "https://ping.telex.im/v1/webhooks"
+
 router.post("/tick", async (req: Request, res: Response) => {
   let payload: any;
   try {
     res.status(202).json({ status: "accepted" });
 
     payload = req.body;
+
+    /**
+     * {
+     * channel_id: "string",
+     * message: "string",
+     * "settings": object[]
+     * }
+     */
+
+    if (!payload.channel_id) {
+      throw new Error("Channel ID is required");
+    }
 
     // Retrieve the last processed error
     const refinedError: ProcessedError | null = getLastProcessedError();
@@ -18,36 +32,38 @@ router.post("/tick", async (req: Request, res: Response) => {
       return;
     }
 
+
+const message = `
+Error Report Details:
+Message: ${refinedError.message}
+Type: ${refinedError.type}
+Priority: ${refinedError.priority}
+Timestamp: ${refinedError.extra?.timestamp}
+Reported By: Code Error Agent
+Event: Processed Error Report
+Status: ${refinedError.priority === "High" ? "error" : "info"}
+Processing Time: ${new Date().toISOString()}
+Performed By: your-username
+Source: error processing
+Full Error Details: ${JSON.stringify(refinedError, null, 2)}
+`.trim();
+
+
     const telexPayload = {
-      message: `Error Report: ${refinedError.message}`,
-      errorType: refinedError.type,
-      errorPriority: refinedError.priority,
-      errorMessage: refinedError.message,
-      errorTimestamp: refinedError.extra?.timestamp,
-      username: "Code Error Agent",
-      event_name: "Processed Error Report",
-      status: refinedError.priority === "High" ? "error" : "info",
-      timestamp: new Date().toISOString(),
-      performed_by: "your-username",
-      metadata: {
-        source: "error processing",
-        fullError: refinedError,
-      },
-    };
-
-    const returnUrl: string | undefined = payload.return_url;
-    if (!returnUrl) {
-      throw new Error("Missing return_url in request payload");
+       "event_name": "Code Error Monitor Agent",
+  "message": message,
+  "status": "success",
+  "username": "Agent Sapa"
     }
-
-    const response = await axios.post(returnUrl, telexPayload, {
+    
+    const response = await axios.post(`${webhookUrl}/${payload.channel_id}`, telexPayload, {
       headers: {
         "Content-Type": "application/json",
         "User-Agent": "Code Error Agent/1.0.0",
       },
     });
 
-    if (response.status !== 200) {
+    if (response.status !== 200 && response.status !== 202) {
       throw new Error(`Failed to forward error to Telex: ${response.statusText}`);
     }
   } catch (error: any) {
