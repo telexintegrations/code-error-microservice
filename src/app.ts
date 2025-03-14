@@ -10,7 +10,6 @@ dotenv.config();
 const app = express();
 app.use(express.json());
 
-// Middleware
 app.use(requestLogger);
 
 app.use(
@@ -21,13 +20,11 @@ app.use(
   })
 );
 
-app.use(cors());  // Allow all origins during testing
-// Routes
+app.use(cors());
 app.use("/api", errorRoutes);
 app.use(integrationRoutes);
 app.use(tickRoute);
 
-// Health Check
 app.get("/health", (_req, res) => {
   res.json({ status: "running", timestamp: new Date().toISOString() });
 });

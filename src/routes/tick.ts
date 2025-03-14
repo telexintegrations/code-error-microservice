@@ -13,19 +13,10 @@ router.post("/tick", async (req: Request, res: Response) => {
 
     payload = req.body;
 
-    /**
-     * {
-     * channel_id: "string",
-     * message: "string",
-     * "settings": object[]
-     * }
-     */
-
     if (!payload.channel_id) {
       throw new Error("Channel ID is required");
     }
 
-    // Retrieve the last processed error
     const refinedError: ProcessedError | null = getLastProcessedError();
     if (!refinedError) {
       console.warn("No processed error available for reporting.");
@@ -33,7 +24,7 @@ router.post("/tick", async (req: Request, res: Response) => {
     }
 
 
-const message = `
+    const message = `
 Error Report Details:
 Message: ${refinedError.message}
 Type: ${refinedError.type}
@@ -50,13 +41,13 @@ Full Error Details: ${JSON.stringify(refinedError, null, 2)}
 
 
     const telexPayload = {
-"event_name": "Code Error Monitor Agent",
-  "message": message,
-  "status": "success",
-  "username": "Agent Sapa"
+      "event_name": "Code Error Monitor Agent",
+      "message": message,
+      "status": "success",
+      "username": "Agent Sapa"
     }
 
-    
+
     console.log(telexPayload.message);
     const response = await axios.post(`${webhookUrl}/${payload.channel_id}`, telexPayload, {
       headers: {

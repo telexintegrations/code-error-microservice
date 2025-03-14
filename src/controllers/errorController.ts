@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import { categorizeError } from "../services/categorizationService";
 
 export interface ProcessedError {
-  channelId:string,
+  channelId: string,
   message: string;
   type: string;
   priority: string;
@@ -11,7 +11,7 @@ export interface ProcessedError {
   };
 }
 
-let lastProcessedError: ProcessedError | null = null; // Store the last processed error
+let lastProcessedError: ProcessedError | null = null;
 
 export const handleIncomingError = (
   req: Request,
@@ -21,7 +21,7 @@ export const handleIncomingError = (
   try {
     const { message, stack, channelId } = req.body;
 
-    if (!message || !stack || channelId ) {
+    if (!message || !stack || channelId) {
       res.status(400).json({ error: "Invalid error report format." });
       return;
     }
@@ -36,12 +36,10 @@ export const handleIncomingError = (
       extra: { timestamp: new Date().toISOString() },
     };
 
-    // console.log(`[Processed Error] Severity: ${severity}, Message: ${message}`);
-
-    res.status(202).json({ status: "accepted" }); 
+    res.status(202).json({ status: "accepted" });
 
   } catch (error) {
-    next(error); 
+    next(error);
   }
 };
 

@@ -7,24 +7,20 @@ import axios from "axios";
 
 const webhookUrl = "https://ping.telex.im/v1/webhooks";
 
-// Initialize ZeroMQ sockets for server
 async function initializeServer() {
   const replySocket = new zmq.Reply();
   const publishSocket = new zmq.Publisher();
 
   try {
-    // Bind both sockets to different ports
     await replySocket.bind("tcp://0.0.0.0:3030");
     await publishSocket.bind("tcp://0.0.0.0:3031");
     console.log("ZeroMQ server bound to ports 3030 (Reply) and 3031 (Publish)");
 
-    // Function to publish messages from server
     const serverPublish = async (message: string) => {
-      await publishSocket.send(["update", message]); // 'update' is the topic
+      await publishSocket.send(["update", message]);
       console.log("Server published:", message);
     };
 
-    // Handle incoming messages
     for await (const [msg] of replySocket) {
       let parsedMessage;
       console.log("Received:", msg.toString());
@@ -76,8 +72,7 @@ async function initializeServer() {
 
       console.log('response data', response?.data);
 
-      // send a success response to the client
-    await replySocket.send(JSON.stringify({ status: "success" }));
+      await replySocket.send(JSON.stringify({ status: "success" }));
     }
 
     return { serverPublish };
