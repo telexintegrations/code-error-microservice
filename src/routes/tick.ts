@@ -50,20 +50,14 @@ Full Error Details: ${JSON.stringify(refinedError, null, 2)}
 
 
     const telexPayload = {
-<<<<<<< HEAD
-       "event_name": "Code Error Monitor Agent",
-=======
 "event_name": "Code Error Monitor Agent",
->>>>>>> 4422d69 (recent changes)
   "message": message,
   "status": "success",
   "username": "Agent Sapa"
     }
-<<<<<<< HEAD
+
     
-=======
     console.log(telexPayload.message);
->>>>>>> 4422d69 (recent changes)
     const response = await axios.post(`${webhookUrl}/${payload.channel_id}`, telexPayload, {
       headers: {
         "Content-Type": "application/json",
