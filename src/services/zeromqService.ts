@@ -22,41 +22,35 @@ async function initializeServer() {
     };
 
     for await (const [msg] of replySocket) {
-      let parsedMessage: ProcessedError | null = null;
+      let parsedMessage;
       console.log("Received:", msg.toString());
 
       try {
-        parsedMessage = JSON.parse(msg.toString()) as ProcessedError;
+        parsedMessage = JSON.parse(msg.toString()) as unknown as ProcessedError;
       } catch (error) {
-        console.error("Failed to parse incoming message:", error);
-        await replySocket.send(
-          JSON.stringify({ status: "error", message: "Invalid message format" })
-        );
-        continue;
+        parsedMessage = msg.toString() as unknown as ProcessedError;
       }
 
-      if (!parsedMessage || !parsedMessage.channelId) {
-        console.warn("Invalid processed error or missing channelId.");
-        await replySocket.send(
-          JSON.stringify({ status: "error", message: "Invalid error report" })
-        );
+      const refinedError: ProcessedError | null = parsedMessage;
+      if (!refinedError) {
+        console.warn("No processed error available for reporting.");
         continue;
       }
 
       const message = `
-        Error Report Details:
-        Message: ${parsedMessage.message}
-        Type: ${parsedMessage.type}
-        Priority: ${parsedMessage.priority}
-        Timestamp: ${parsedMessage.extra?.timestamp}
-        Reported By: Code Error Agent
-        Event: Processed Error Report
-        Status: ${parsedMessage.priority === "High" ? "error" : "info"}
-        Processing Time: ${new Date().toISOString()}
-        Performed By: your-username
-        Source: error processing
-        Full Error Details: ${JSON.stringify(parsedMessage, null, 2)}
-      `.trim();
+Error Report Details:
+Message: ${refinedError.message}
+Type: ${refinedError.type}
+Priority: ${refinedError.priority}
+Timestamp: ${refinedError.extra?.timestamp}
+Reported By: Code Error Agent
+Event: Processed Error Report
+Status: ${refinedError.priority === "High" ? "error" : "info"}
+Processing Time: ${new Date().toISOString()}
+Performed By: your-username
+Source: error processing
+Full Error Details: ${JSON.stringify(refinedError, null, 2)}
+`.trim();
 
       const telexPayload = {
         event_name: "Code Error Monitor Agent",
@@ -65,25 +59,20 @@ async function initializeServer() {
         username: "Agent Sapa",
       };
 
-      try {
-        const response = await axios.post(
-          `${webhookUrl}/${parsedMessage.channelId}`,
-          telexPayload,
-          {
-            headers: {
-              "Content-Type": "application/json",
-              "User-Agent": "Code Error Agent/1.0.0",
-            },
-          }
-        );
-        console.log("Webhook response data:", response?.data);
-        await replySocket.send(JSON.stringify({ status: "success" }));
-      } catch (error) {
-        console.error("Failed to send webhook notification:", error);
-        await replySocket.send(
-          JSON.stringify({ status: "error", message: "Webhook delivery failed" })
-        );
-      }
+      const response = await axios.post(
+        `${webhookUrl}/${refinedError.channelId}`,
+        telexPayload,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            "User-Agent": "Code Error Agent/1.0.0",
+          },
+        }
+      );
+
+      console.log("response data", response?.data);
+
+      await replySocket.send(JSON.stringify({ status: "success" }));
     }
 
     return { serverPublish };
