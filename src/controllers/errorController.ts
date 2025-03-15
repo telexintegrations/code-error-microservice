@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import { categorizeError } from "../services/categorizationService";
 
 export interface ProcessedError {
-  channelId: string,
+  channelId: string;
   message: string;
   type: string;
   priority: string;
@@ -21,8 +21,8 @@ export const handleIncomingError = (
   try {
     const { message, stack, channelId } = req.body;
 
-    if (!message || !stack || channelId) {
-      res.status(400).json({ error: "Invalid error report format." });
+    if (!message || !stack || !channelId) {
+      res.status(400).json({ error: "Invalid error report format. Missing required fields." });
       return;
     }
 
@@ -37,7 +37,6 @@ export const handleIncomingError = (
     };
 
     res.status(202).json({ status: "accepted" });
-
   } catch (error) {
     next(error);
   }

@@ -4,13 +4,12 @@ import { getLastProcessedError, ProcessedError } from "../controllers/errorContr
 
 const router = Router();
 
-const webhookUrl = "https://ping.telex.im/v1/webhooks"
+const webhookUrl = "https://ping.telex.im/v1/webhooks";
 
 router.post("/tick", async (req: Request, res: Response) => {
   let payload: any;
   try {
     res.status(202).json({ status: "accepted" });
-
     payload = req.body;
 
     if (!payload.channel_id) {
@@ -22,7 +21,6 @@ router.post("/tick", async (req: Request, res: Response) => {
       console.warn("No processed error available for reporting.");
       return;
     }
-
 
     const message = `
 Error Report Details:
@@ -39,14 +37,12 @@ Source: error processing
 Full Error Details: ${JSON.stringify(refinedError, null, 2)}
 `.trim();
 
-
     const telexPayload = {
-      "event_name": "Code Error Monitor Agent",
-      "message": message,
-      "status": "success",
-      "username": "Agent Sapa"
-    }
-
+      event_name: "Code Error Monitor Agent",
+      message,
+      status: "success",
+      username: "Agent Sapa",
+    };
 
     console.log(telexPayload.message);
     const response = await axios.post(`${webhookUrl}/${payload.channel_id}`, telexPayload, {
@@ -56,7 +52,7 @@ Full Error Details: ${JSON.stringify(refinedError, null, 2)}
       },
     });
 
-    if (response.status !== 200 && response.status !== 202) {
+    if (![200, 202].includes(response.status)) {
       throw new Error(`Failed to forward error to Telex: ${response.statusText}`);
     }
   } catch (error: any) {
