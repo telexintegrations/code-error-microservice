@@ -38,19 +38,19 @@ async function initializeServer() {
       }
 
       const message = `
-        Error Report Details:
-        Message: ${refinedError.message}
-        Type: ${refinedError.type}
-        Priority: ${refinedError.priority}
-        Timestamp: ${refinedError.extra?.timestamp}
-        Reported By: Code Error Agent
-        Event: Processed Error Report
-        Status: ${refinedError.priority === "High" ? "error" : "info"}
-        Processing Time: ${new Date().toISOString()}
-        Performed By: your-username
-        Source: error processing
-        Full Error Details: ${JSON.stringify(refinedError, null, 2)}
-        `.trim();
+Error Report Details:
+Message: ${refinedError.message}
+Type: ${refinedError.type}
+Priority: ${refinedError.priority}
+Timestamp: ${refinedError.extra?.timestamp}
+Reported By: Code Error Agent
+Event: Processed Error Report
+Status: ${refinedError.priority === "High" ? "error" : "info"}
+Processing Time: ${new Date().toISOString()}
+Performed By: your-username
+Source: error processing
+Full Error Details: ${JSON.stringify(refinedError, null, 2)}
+`.trim();
 
       const telexPayload = {
         event_name: "Code Error Monitor Agent",
@@ -70,7 +70,7 @@ async function initializeServer() {
         }
       );
 
-      console.log('response data', response?.data);
+      console.log("response data", response?.data);
 
       await replySocket.send(JSON.stringify({ status: "success" }));
     }
@@ -81,4 +81,5 @@ async function initializeServer() {
     throw error;
   }
 }
+
 export const zeromqClient = initializeServer();

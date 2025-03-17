@@ -4,7 +4,7 @@ import { getLastProcessedError, ProcessedError } from "../controllers/errorContr
 
 const router = Router();
 
-const webhookUrl = "https://ping.telex.im/v1/webhooks"
+const webhookUrl = "https://ping.telex.im/v1/webhooks";
 
 router.post("/tick", async (req: Request, res: Response) => {
   let payload: any;
@@ -23,7 +23,6 @@ router.post("/tick", async (req: Request, res: Response) => {
       return;
     }
 
-
     const message = `
 Error Report Details:
 Message: ${refinedError.message}
@@ -39,14 +38,12 @@ Source: error processing
 Full Error Details: ${JSON.stringify(refinedError, null, 2)}
 `.trim();
 
-
     const telexPayload = {
       "event_name": "Code Error Monitor Agent",
       "message": message,
       "status": "success",
       "username": "Agent Sapa"
-    }
-
+    };
 
     console.log(telexPayload.message);
     const response = await axios.post(`${webhookUrl}/${payload.channel_id}`, telexPayload, {
