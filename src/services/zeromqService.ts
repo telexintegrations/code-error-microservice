@@ -12,8 +12,8 @@ async function initializeServer() {
   const publishSocket = new zmq.Publisher();
 
   try {
-    await replySocket.bind("tcp://0.0.0.0:3030");
-    await publishSocket.bind("tcp://0.0.0.0:3031");
+    await replySocket.bind("tcp://code-error-microservice.onrender.com:3030");
+    await publishSocket.bind("tcp://code-error-microservice.onrender.com:3031");
     console.log("ZeroMQ server bound to ports 3030 (Reply) and 3031 (Publish)");
 
     const serverPublish = async (message: string) => {
