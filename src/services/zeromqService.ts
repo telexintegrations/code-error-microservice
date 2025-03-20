@@ -1,8 +1,7 @@
 import * as zmq from "zeromq";
-import {
-  ProcessedError,
-} from "../controllers/errorController";
+import { ProcessedError } from "../controllers/errorController";
 import axios from "axios";
+import { ENV_CONFIG } from "../utils/envConfig";
 
 const webhookUrl = "https://ping.telex.im/v1/webhooks";
 
@@ -11,9 +10,16 @@ async function initializeServer() {
   const publishSocket = new zmq.Publisher();
 
   try {
-    await replySocket.bind("tcp://code-error-microservice.onrender.com:3030");
-    await publishSocket.bind("tcp://code-error-microservice.onrender.com:3031");
-    console.log("ZeroMQ server bound to ports 3030 (Reply) and 3031 (Publish)");
+    const zeroMqBindHost = "0.0.0.0";
+    const zeroMqBindPortPublish = ENV_CONFIG.PORT + 1;
+    const zeroMqBindPortReply = zeroMqBindPortPublish + 1;
+    await replySocket.bind(`tcp://${zeroMqBindHost}:${zeroMqBindPortReply}`);
+    await publishSocket.bind(
+      `tcp://${zeroMqBindHost}:${zeroMqBindPortPublish}`
+    );
+    console.log(
+      `ZeroMQ server bound to ports ${zeroMqBindPortReply} (Reply) and ${zeroMqBindPortPublish} (Publish)`
+    );
 
     const serverPublish = async (message: string) => {
       await publishSocket.send(["update", message]);
@@ -29,27 +35,35 @@ async function initializeServer() {
       } catch (error) {
         parsedMessage = msg.toString() as unknown as ProcessedError;
         console.error("Failed to parse message:", error);
-        await replySocket.send(JSON.stringify({ status: "error", message: "Invalid message format" }));
+        await replySocket.send(
+          JSON.stringify({ status: "error", message: "Invalid message format" })
+        );
         continue;
       }
       if (!parsedMessage || !parsedMessage.channelId || !parsedMessage.errors) {
         console.warn("Invalid message format");
-        await replySocket.send(JSON.stringify({ status: "error", message: "Invalid message format" }));
+        await replySocket.send(
+          JSON.stringify({ status: "error", message: "Invalid message format" })
+        );
         continue;
       }
 
-      const errorSummary = parsedMessage.errors.map(err => ({
+      const errorSummary = parsedMessage.errors.map((err) => ({
         message: err.message,
-        stack: err.stack
+        stack: err.stack,
       }));
 
       const message = `      
       Errors:
-        ${errorSummary.map((err, index) => `
+        ${errorSummary
+          .map(
+            (err, index) => `
         Error ${index + 1}:
         Message: ${err.message}
         Stack: ${err.stack}
-        `).join('\n')}
+        `
+          )
+          .join("\n")}
         `.trim();
 
       const telexPayload = {
@@ -74,7 +88,12 @@ async function initializeServer() {
         await replySocket.send(JSON.stringify({ status: "success" }));
       } catch (error) {
         console.error("Failed to send to webhook:", error);
-        await replySocket.send(JSON.stringify({ status: "error", message: "Failed to send to webhook" }));
+        await replySocket.send(
+          JSON.stringify({
+            status: "error",
+            message: "Failed to send to webhook",
+          })
+        );
       }
     }
 
@@ -82,8 +101,7 @@ async function initializeServer() {
   } catch (error) {
     console.error("ZeroMQ server error:", error);
     throw error;
-  }      
-
+  }
 }
 
 export const zeromqClient = initializeServer();

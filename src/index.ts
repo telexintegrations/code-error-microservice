@@ -1,9 +1,7 @@
 import app from "./app";
-import axios from "axios"
 import "./services/zeromqService";
+import { ENV_CONFIG } from "./utils/envConfig";
 
-const PORT = process.env.PORT || 4000;
-
-app.listen(PORT, () => {
-  console.log(`Microservice running on port ${PORT}`);
+app.listen(ENV_CONFIG.PORT, () => {
+  console.log(`Microservice running on port ${ENV_CONFIG.PORT}`);
 });

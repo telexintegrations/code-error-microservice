@@ -1,8 +1,9 @@
-import { Router, Request, Response } from "express"; 
+import { Router, Request, Response } from "express";
+import { ENV_CONFIG } from "../utils/envConfig";
 
 const router = Router();
 
-router.get("/integration.json", (req: Request, res: Response) => {
+router.get("/integration-json", (req: Request, res: Response) => {
   const integrationData = {
     data: {
       date: {
@@ -12,9 +13,9 @@ router.get("/integration.json", (req: Request, res: Response) => {
       descriptions: {
         app_description:
           "Analyzes your codebase for static errors and reports them to Telex channels with prioritized error classification.",
-        app_logo: "https://example.com/path-to-code-error-agent-logo.png", 
+        app_logo: "https://example.com/path-to-code-error-agent-logo.png",
         app_name: "Code Error Agent",
-        app_url: "https://code-error-agent-production.up.railway.app/",
+        app_url: ENV_CONFIG.SERVER_URL,
         background_color: "#FF4444",
       },
       integration_category: "AI & Machine Learning",
@@ -53,10 +54,8 @@ router.get("/integration.json", (req: Request, res: Response) => {
           default: "*/15 * * * *",
         },
       ],
-      tick_url:
-        "https://code-error-agent-production.up.railway.app/tick",
-      target_url:
-        "https://code-error-agent-production.up.railway.app/webhook",
+      tick_url: `${ENV_CONFIG.SERVER_URL}/tick`,
+      target_url: `${ENV_CONFIG.SERVER_URL}/webhook`,
     },
   };
 
