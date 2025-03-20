@@ -2,13 +2,16 @@ import { Request, Response, NextFunction } from "express";
 import { categorizeError } from "../services/categorizationService";
 
 export interface ProcessedError {
-  channelId: string,
-  message: string;
+  channelId: string;
   type: string;
-  priority: string;
-  extra?: {
-    timestamp: string;
-  };
+  errors: ErrorItem[];
+  timestamp: string;
+  priority?: string;
+}
+
+export interface ErrorItem {
+  message: string;
+  stack: string;
 }
 
 let lastProcessedError: ProcessedError | null = null;
@@ -19,21 +22,28 @@ export const handleIncomingError = (
   next: NextFunction
 ): void => {
   try {
-    const { message, stack, channelId } = req.body;
+    const { channelId, type, errors, timestamp } = req.body;
 
-    if (!message || !stack || channelId) {
+    if (!channelId || !type || !Array.isArray(errors) || errors.length === 0) {
       res.status(400).json({ error: "Invalid error report format." });
       return;
     }
 
-    const severity = categorizeError(message);
+    const highestSeverity = errors
+    .map(err => categorizeError(err.message))
+    .reduce((prev, current) => 
+      current === "High" ? current : 
+      (prev === "High" ? prev : 
+      (current === "Medium" ? current : prev)), 
+      "Low"
+    );
 
     lastProcessedError = {
       channelId,
-      message,
-      type: "Error",
-      priority: severity,
-      extra: { timestamp: new Date().toISOString() },
+      type,
+      errors,
+      timestamp: timestamp || new Date().toISOString(),
+      priority: highestSeverity
     };
 
     res.status(202).json({ status: "accepted" });
