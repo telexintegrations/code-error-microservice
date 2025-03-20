@@ -1,0 +1,31 @@
+name: Deploy To Server
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Deploy to Server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{secrets.SERVER_HOST}}
+          key: ${{secrets.SERVER_SSH_KEY}}
+          username: ${{secrets.SERVER_USERNAME}}
+          script: |
+            cd /var/www/micah-code-error-integration-telex
+            # Stash changes to prevent conflicts
+            git stash
+            git pull https://github.com/telexintegrations/code-error-microservice main
+            npm install
+            export NODE_OPTIONS="--max-old-space-size=4096"
+            npm run start:prod
+            echo "Deployment to Server Completed"
