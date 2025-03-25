@@ -42,7 +42,7 @@ router.post("/tick", async (req: Request, res: Response) => {
           "event_name": "Code Error Monitor Agent",
           "message": message,
           "status": "success",
-          "username": "Agent Sapa"
+          "username": "Code Error Agent"
         };
     
         console.log(telexPayload.message);
