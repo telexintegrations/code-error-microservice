@@ -1,7 +1,7 @@
 import { openai } from "@ai-sdk/openai";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { Agent } from "@mastra/core/agent";
-import { weatherTool } from "../tools";
+import { weatherTool } from "../tools/index.js";
 
 const google = createGoogleGenerativeAI({
   apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY,

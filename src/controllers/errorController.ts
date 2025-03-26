@@ -132,7 +132,7 @@
  * live version
  */
 import { Request, Response, NextFunction } from "express";
-import { categorizeError } from "../services/categorizationService";
+import { categorizeError } from "../services/categorizationService.js";
 
 export interface ProcessedError {
   type: string;

@@ -1,10 +1,10 @@
 import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
-import requestLogger from "./middlewares/requestLogger";
-import errorRoutes from "./routes/errorRoutes";
-import integrationRoutes from "./routes/integrations";
-import tickRoute from "./routes/tick";
+import requestLogger from "./middlewares/requestLogger.js";
+import errorRoutes from "./routes/errorRoutes.js";
+import integrationRoutes from "./routes/integrations.js";
+import tickRoute from "./routes/tick.js";
 dotenv.config();
 
 const app = express();

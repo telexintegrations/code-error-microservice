@@ -1,9 +1,14 @@
 import { Router, Request, Response } from "express";
-import { ENV_CONFIG } from "../utils/envConfig";
+import { ENV_CONFIG } from "../utils/envConfig.js";
 
 const router = Router();
 
 router.get("/integration-json", (req: Request, res: Response) => {
+  // Get the host from the request headers
+  const host = req.get('host');
+  const protocol = req.protocol;
+  const baseUrl = `${protocol}://${host}`;
+
   const integrationData = {
     data: {
       date: {
@@ -15,7 +20,7 @@ router.get("/integration-json", (req: Request, res: Response) => {
           "Analyzes your codebase for static errors and reports them to Telex channels with prioritized error classification.",
         app_logo: "https://example.com/path-to-code-error-agent-logo.png",
         app_name: "Code Error Agent",
-        app_url: ENV_CONFIG.SERVER_URL,
+        app_url: baseUrl,
         background_color: "#FF4444",
       },
       integration_category: "AI & Machine Learning",
@@ -54,12 +59,23 @@ router.get("/integration-json", (req: Request, res: Response) => {
           default: "*/15 * * * *",
         },
       ],
-      tick_url: `${ENV_CONFIG.SERVER_URL}/tick`,
-      target_url: `${ENV_CONFIG.SERVER_URL}/webhook`,
+      // Use the ngrok URL for these endpoints
+      tick_url: `${baseUrl}/code-error-integration/tick`,
+      target_url: `${baseUrl}/code-error-integration/webhook`,
     },
   };
 
   res.json(integrationData);
+});
+
+// Add webhook handler
+router.post("/webhook", (req: Request, res: Response) => {
+  // console.log("=== WEBHOOK RECEIVED ===");
+  // console.log("Headers:", req.headers);
+  // console.log("Body:", req.body);
+  // console.log("=====================");
+  
+  res.status(200).json({ status: "success" });
 });
 
 export default router;

@@ -3,9 +3,9 @@
  */
 import * as zmq from "zeromq";
 import axios from "axios";
-import { ProcessedError } from "../controllers/errorController";
-import { ENV_CONFIG } from "../utils/envConfig";
-import { categorizeError } from "../services/categorizationService"; // Importing for fallback severity computation
+import { ProcessedError } from "../controllers/errorController.js";
+import { ENV_CONFIG } from "../utils/envConfig.js";
+import { categorizeError } from "../services/categorizationService.js"; // Importing for fallback severity computation
 
 // Define an interface for the error object structure
 interface ErrorObject {
