@@ -8,13 +8,13 @@ export type ErrorCategory = "High" | "Medium" | "Low";
 
 /**
  * Categorizes an error message into a severity level.
- * 
+ * z
  * This function attempts to cover most types of runtime errors by performing
  * a series of case-insensitive checks against known error types. It is designed
  * to align with the grouping strategies used in platforms like Sentry.
  *
  * - "High": Critical errors such as ReferenceError, SyntaxError, InternalError.
- * - "Medium": Recoverable or non-critical runtime errors like TypeError, RangeError, 
+ * - "Medium": Recoverable or non-critical runtime errors like TypeError, RangeError,
  *             EvalError, URIError, AggregateError, DOMException, NetworkError, Timeout errors.
  * - "Low": All other errors that do not fall under the above categories.
  *

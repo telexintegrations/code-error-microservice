@@ -1,138 +1,10 @@
-/** 
- * local version
- * */
-
-// import { Request, Response, NextFunction } from "express";
-// import { categorizeError } from "../services/categorizationService";
-
-// export interface ProcessedError {
-//   channelId: string;
-//   type: string;
-//   errors: ErrorItem[];
-//   timestamp: string;
-//   priority?: string;
-// }
-
-// export interface ErrorItem {
-//   message: string;
-//   stack: string;
-//   // A simplified, user-friendly description of the error.
-//   readableMessage?: string;
-// }
-
-// let lastProcessedError: ProcessedError | null = null;
-
-// /**
-//  * Handles incoming error reports by:
-//  * - Validating the payload.
-//  * - Categorizing each error using the updated categorization service.
-//  * - Enriching errors with a user-friendly message that omits the verbose stack trace.
-//  * - Constructing a neat summary report with emojis and essential details.
-//  *
-//  * If the payload is invalid (missing channelId, type, or errors array),
-//  * responds with a 400 status and an explanatory message.
-//  */
-// export const handleIncomingError = (
-//   req: Request,
-//   res: Response,
-//   next: NextFunction
-// ): void => {
-//   try {
-//     const { channelId, type, errors, timestamp } = req.body;
-
-//     if (!channelId || !type || !Array.isArray(errors) || errors.length === 0) {
-//       res.status(400).json({
-//         error:
-//           "🚫 Invalid error report format. Ensure that 'channelId', 'type', and a non-empty 'errors' array are provided.",
-//       });
-//       return;
-//     }
-
-//     // Enrich each error with a more friendly message (removing detailed stack traces).
-//     const enrichedErrors: ErrorItem[] = errors.map((err: ErrorItem) => {
-//       const severity = categorizeError(err.message);
-//       let emoji: string;
-//       switch (severity) {
-//         case "High":
-//           emoji = "🚨";
-//           break;
-//         case "Medium":
-//           emoji = "🔔";
-//           break;
-//         default:
-//           emoji = "ℹ️";
-//           break;
-//       }
-//       return {
-//         ...err,
-        
-//         readableMessage: `${emoji} ${severity} severity error: ${err.message}`,
-//       };
-//     });
-
-//     // Determine the highest severity among reported errors.
-//     const highestSeverity = enrichedErrors
-//       .map((err) => categorizeError(err.message))
-//       .reduce(
-//         (prev, current) =>
-//           current === "High"
-//             ? current
-//             : prev === "High"
-//             ? prev
-//             : current === "Medium"
-//             ? current
-//             : prev,
-//         "Low"
-//       );
-
-//     // Format timestamp to a more readable local date and time string.
-//     const formattedTimestamp = timestamp
-//       ? new Date(timestamp).toLocaleString()
-//       : new Date().toLocaleString();
-
-//     lastProcessedError = {
-//       channelId,
-//       type,
-//       errors: enrichedErrors,
-//       timestamp: formattedTimestamp,
-//       priority: highestSeverity,
-//     };
-
-//     // Build a simplified user-friendly error report message.
-//     let reportMessage = `✅ Error Report Accepted:
-// Channel: ${channelId}
-// Type: ${type}
-// Time: ${formattedTimestamp}
-// Overall Severity: ${highestSeverity}
-
-// Detailed Errors:
-// `;
-//     enrichedErrors.forEach((err, idx) => {
-//       reportMessage += `Error ${idx + 1}: ${err.readableMessage}\n`;
-//     });
-
-//     res.status(202).json({
-//       status: "accepted",
-//       message: reportMessage,
-//     });
-//   } catch (error) {
-//     next(error);
-//   }
-// };
-
-// /**
-//  * Returns the last processed error report.
-//  */
-// export const getLastProcessedError = (): ProcessedError | null => {
-//   return lastProcessedError;
-// };
-
-
 /**
  * live version
  */
 import { Request, Response, NextFunction } from "express";
 import { categorizeError } from "../services/categorizationService";
+import axios from "axios";
+import { ENV_CONFIG } from "../utils/envConfig";
 
 export interface ProcessedError {
   type: string;
@@ -159,20 +31,72 @@ let lastProcessedError: ProcessedError | null = null;
  * If the payload is invalid (missing type or errors array),
  * responds with a 400 status and an explanatory message.
  */
-export const handleIncomingError = (
+export const handleIncomingError = async (
   req: Request,
   res: Response,
   next: NextFunction
-): void => {
+): Promise<void> => {
   try {
+    console.log("🎯 Entering handleIncomingError");
+    console.log("📝 Request body:", JSON.stringify(req.body, null, 2));
+
     const { type, errors, timestamp } = req.body;
 
     if (!type || !Array.isArray(errors) || errors.length === 0) {
+      console.log("❌ Invalid request format");
       res.status(400).json({
         error:
           "🚫 Invalid error report format. Ensure that 'type' and a non-empty 'errors' array are provided.",
       });
       return;
+    }
+
+    console.log("✅ Request validation passed");
+
+    const reqMessage = `Analyze these errors:
+Type: ${type}
+Timestamp: ${timestamp}
+Errors: ${JSON.stringify(errors, null, 2)}
+
+Provide analysis including:
+1. Error patterns
+2. Root cause
+3. Suggested fixes
+4. Prevention tips`;
+
+    const aiRequestMessage = {
+      messages: [
+        {
+          role: "user",
+          content: reqMessage,
+        },
+      ],
+    };
+
+    let aiAnalysis;
+    try {
+      const aiAnalysisResponse = await axios.post(
+        `${ENV_CONFIG.SERVER_URL}/api/agents/errorAnalysisAgent/generate`,
+        aiRequestMessage,
+        {
+          headers: {
+            "Content-Type": "application/json", // Make sure this is set
+          },
+        }
+      );
+
+      console.log(
+        "✨ AI Response:",
+        JSON.stringify(aiAnalysisResponse.data, null, 2)
+      );
+      aiAnalysis = aiAnalysisResponse.data;
+    } catch (aiError) {
+      console.error(
+        "🚨 AI Analysis failed:",
+        aiError instanceof Error ? aiError.message : "Unknown AI error",
+        aiError
+      );
+      aiAnalysis = { error: "AI analysis unavailable" };
     }
 
     // Enrich each error with a more friendly message (removing detailed stack traces).
@@ -204,10 +128,10 @@ export const handleIncomingError = (
           current === "High"
             ? current
             : prev === "High"
-            ? prev
-            : current === "Medium"
-            ? current
-            : prev,
+              ? prev
+              : current === "Medium"
+                ? current
+                : prev,
         "Low"
       );
 
@@ -215,7 +139,7 @@ export const handleIncomingError = (
     const formattedTimestamp = timestamp
       ? new Date(timestamp).toLocaleString()
       : new Date().toLocaleString();
-    
+
     lastProcessedError = {
       type,
       errors: enrichedErrors,
@@ -225,9 +149,19 @@ export const handleIncomingError = (
 
     res.status(202).json({
       status: "accepted",
-      severity: highestSeverity
+      severity: highestSeverity,
+      aiAnalysis: aiAnalysis,
     });
   } catch (error) {
+    console.error(
+      "❌ Error with AI analysis:",
+      error instanceof Error
+        ? error.message
+        : typeof error === "object" && error !== null && "response" in error
+          ? (error as { response?: { data: any } }).response?.data
+          : "Unknown error"
+    );
+    console.error("🔍 Full error:", error);
     next(error);
   }
 };
