@@ -23,6 +23,7 @@ app.use(
 app.use(cors());
 app.use("/api", errorRoutes);
 app.use(integrationRoutes);
+app.use("/code-error-integration",integrationRoutes)
 app.use(tickRoute);
 
 app.get("/health", (_req, res) => {

@@ -1,102 +1,96 @@
 import { createTool } from '@mastra/core/tools';
 import { z } from 'zod';
 
-interface GeocodingResponse {
-  results: {
-    latitude: number;
-    longitude: number;
-    name: string;
-  }[];
-}
-interface WeatherResponse {
-  current: {
-    time: string;
-    temperature_2m: number;
-    apparent_temperature: number;
-    relative_humidity_2m: number;
-    wind_speed_10m: number;
-    wind_gusts_10m: number;
-    weather_code: number;
-  };
+interface ErrorContext {
+  message: string;
+  stack: string;
+  readableMessage?: string;
+  priority?: string;
 }
 
-export const weatherTool = createTool({
-  id: 'get-weather',
-  description: 'Get current weather for a location',
+export const errorAnalysisTool = createTool({
+  id: 'analyze-error',
+  description: 'Analyze and provide solutions for code errors',
   inputSchema: z.object({
-    location: z.string().describe('City name'),
+    error: z.object({
+      message: z.string().describe('Error message'),
+      stack: z.string().describe('Error stack trace'),
+      priority: z.string().optional().describe('Error priority level'),
+    }),
+    context: z.object({
+      threadId: z.string().optional(),
+      channelId: z.string(),
+    }),
   }),
   outputSchema: z.object({
-    temperature: z.number(),
-    feelsLike: z.number(),
-    humidity: z.number(),
-    windSpeed: z.number(),
-    windGust: z.number(),
-    conditions: z.string(),
-    location: z.string(),
+    analysis: z.string(),
+    suggestedFix: z.string(),
+    additionalContext: z.string().optional(),
+    severity: z.enum(['High', 'Medium', 'Low']),
   }),
   execute: async ({ context }) => {
-    return await getWeather(context.location);
+    return await analyzeError(context.error);
   },
 });
 
-const getWeather = async (location: string) => {
-  const geocodingUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(location)}&count=1`;
-  const geocodingResponse = await fetch(geocodingUrl);
-  const geocodingData = (await geocodingResponse.json()) as GeocodingResponse;
-
-  if (!geocodingData.results?.[0]) {
-    throw new Error(`Location '${location}' not found`);
-  }
-
-  const { latitude, longitude, name } = geocodingData.results[0];
-
-  const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m,wind_gusts_10m,weather_code`;
-
-  const response = await fetch(weatherUrl);
-  const data = (await response.json()) as WeatherResponse;
-
+const analyzeError = async (error: ErrorContext) => {
+  // Analyze the error and provide solutions
+  const analysis = await analyzeErrorMessage(error.message, error.stack);
+  const fix = await generateErrorFix(analysis, error.stack);
+  
   return {
-    temperature: data.current.temperature_2m,
-    feelsLike: data.current.apparent_temperature,
-    humidity: data.current.relative_humidity_2m,
-    windSpeed: data.current.wind_speed_10m,
-    windGust: data.current.wind_gusts_10m,
-    conditions: getWeatherCondition(data.current.weather_code),
-    location: name,
+    analysis: analysis.description,
+    suggestedFix: fix.solution,
+    additionalContext: fix.context,
+    severity: error.priority as 'High' | 'Medium' | 'Low' || 'Medium'
   };
 };
 
-function getWeatherCondition(code: number): string {
-  const conditions: Record<number, string> = {
-    0: 'Clear sky',
-    1: 'Mainly clear',
-    2: 'Partly cloudy',
-    3: 'Overcast',
-    45: 'Foggy',
-    48: 'Depositing rime fog',
-    51: 'Light drizzle',
-    53: 'Moderate drizzle',
-    55: 'Dense drizzle',
-    56: 'Light freezing drizzle',
-    57: 'Dense freezing drizzle',
-    61: 'Slight rain',
-    63: 'Moderate rain',
-    65: 'Heavy rain',
-    66: 'Light freezing rain',
-    67: 'Heavy freezing rain',
-    71: 'Slight snow fall',
-    73: 'Moderate snow fall',
-    75: 'Heavy snow fall',
-    77: 'Snow grains',
-    80: 'Slight rain showers',
-    81: 'Moderate rain showers',
-    82: 'Violent rain showers',
-    85: 'Slight snow showers',
-    86: 'Heavy snow showers',
-    95: 'Thunderstorm',
-    96: 'Thunderstorm with slight hail',
-    99: 'Thunderstorm with heavy hail',
+async function analyzeErrorMessage(message: string, stack: string) {
+  // Implement error analysis logic here
+  // This could include pattern matching, stack trace parsing, etc.
+  return {
+    description: `Analysis of error: ${message}\n` +
+                 `Based on the stack trace, this appears to be...`,
+    errorType: determineErrorType(message),
+    relevantStackLines: extractRelevantStackInfo(stack)
   };
-  return conditions[code] || 'Unknown';
+}
+
+async function generateErrorFix(analysis: any, stack: string) {
+  // Implement fix generation logic
+  return {
+    solution: `Suggested fix:\n` +
+              `1. [Action steps to resolve the error]\n` +
+              `2. [Additional recommendations]`,
+    context: `Additional context:\n` +
+             `- Root cause: [explanation]\n` +
+             `- Prevention tips: [recommendations]`
+  };
+}
+
+function determineErrorType(message: string): string {
+  // Implement error type detection
+  const errorPatterns = {
+    syntax: /syntax error|unexpected token|unexpected identifier/i,
+    reference: /is not defined|cannot access|reference error/i,
+    type: /type error|cannot read property|is not a function/i,
+    // Add more patterns as needed
+  };
+
+  for (const [type, pattern] of Object.entries(errorPatterns)) {
+    if (pattern.test(message)) {
+      return type;
+    }
+  }
+  
+  return 'unknown';
+}
+
+function extractRelevantStackInfo(stack: string): string[] {
+  // Extract meaningful information from stack trace
+  return stack
+    .split('\n')
+    .filter(line => !line.includes('node_modules'))
+    .slice(0, 3); // Get first 3 relevant lines
 }

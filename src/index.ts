@@ -5,14 +5,18 @@ import { mastra } from "./mastra/config.js";
 
 async function startServer() {
   try {
-    // Log the Mastra configuration
+    // Verify Mastra configuration
+    const agents = mastra.getAgents();
+    if (!agents || !agents.errorAnalysisAgent) {
+      throw new Error('Mastra agents not properly configured');
+    }
+
     console.log('Mastra configured with:', {
-      agents: Object.keys(mastra.getAgents?.() || {}),
-      tools: Object.keys(Object.values(mastra.getAgents?.() || {}).reduce((acc, agent) => ({ ...acc, ...agent.tools }), {})),
-      telemetry: mastra.getTelemetry?.()
+      agents: Object.keys(agents),
+      tools: Object.keys(Object.values(agents).reduce((acc, agent) => ({ ...acc, ...agent.tools }), {})),
+      telemetry: mastra.getTelemetry()
     });
     
-    // Start your Express server
     app.listen(ENV_CONFIG.PORT, () => {
       console.log(`Microservice running on http://localhost:${ENV_CONFIG.PORT}`);
     });

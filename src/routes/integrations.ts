@@ -1,5 +1,9 @@
 import { Router, Request, Response } from "express";
-import { ENV_CONFIG } from "../utils/envConfig.js";
+import { mastra } from "../mastra/config.js";
+import { zeromqClient } from "../services/zeromqService.js";
+import { getLastProcessedError } from "../controllers/errorController.js";
+import { errorStore } from "../services/errorStore.js";
+import { v4 as uuidv4 } from 'uuid';
 
 const router = Router();
 
@@ -69,13 +73,89 @@ router.get("/integration-json", (req: Request, res: Response) => {
 });
 
 // Add webhook handler
-router.post("/webhook", (req: Request, res: Response) => {
-  // console.log("=== WEBHOOK RECEIVED ===");
-  // console.log("Headers:", req.headers);
-  // console.log("Body:", req.body);
-  // console.log("=====================");
+router.post("/webhook", async (req: Request, res: Response): Promise<void> => {
+  const { message, channel_id, thread_id, error_data } = req.body;
   
-  res.status(200).json({ status: "success" });
+  try {
+    // Handle user message in thread - this is when we should send Mastra's analysis
+    if (message && thread_id && !error_data) {
+      const errorInfo = errorStore.getErrorByThreadId(thread_id);
+      
+      if (errorInfo) {
+        // Generate response using Mastra
+        const response = await mastra.getAgent('errorAnalysisAgent').generate([{
+          role: 'user',
+          content: JSON.stringify({
+            error: errorInfo,
+            userMessage: message,
+            context: {
+              channelId: channel_id,
+              threadId: thread_id
+            }
+          })
+        }]);
+
+        // Send Mastra's analysis to Telex
+        const client = await zeromqClient;
+        await client.serverPublish(JSON.stringify({
+          channelId: channel_id,
+          threadId: thread_id,
+          type: 'error_analysis_response',
+          message: response,
+          errorId: errorInfo.error.id,
+          analysis: response.text // Include Mastra's analysis
+        }));
+
+        res.status(200).json({
+          status: "success",
+          message: "Analysis generated and sent"
+        });
+        return;
+      }
+    }
+
+    // Handle initial error submission - just report the error, no analysis yet
+    if (error_data) {
+      const errorId = uuidv4();
+      
+      // Store error for later analysis
+      errorStore.setLastProcessedError({
+        id: errorId,
+        ...error_data
+      }, channel_id);
+
+      // Send initial error report to Telex
+      const client = await zeromqClient;
+      await client.serverPublish(JSON.stringify({
+        channelId: channel_id,
+        type: 'error_report',
+        errorId,
+        errors: [{
+          message: error_data.message,
+          stack: error_data.stack
+        }],
+        priority: error_data.priority || 'Medium'
+      }));
+
+      res.status(200).json({ 
+        status: "success",
+        errorId
+      });
+      return;
+    }
+
+    res.status(400).json({
+      status: "error",
+      message: "Unhandled request type"
+    });
+
+  } catch (error) {
+    console.error("Error processing webhook:", error);
+    res.status(500).json({ 
+      status: "error", 
+      message: "Failed to process webhook" 
+    });
+  }
 });
 
 export default router;
