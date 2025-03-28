@@ -1,6 +1,7 @@
 /**
  * Local version
  */
+
 import * as zmq from "zeromq";
 import axios from "axios";
 import { ProcessedError } from "../controllers/errorController";
@@ -62,7 +63,7 @@ function computeOverallSeverity(errors: ErrorObject[]): string {
 
 async function sendToWebhook(
   channelId: string,
-  payload: WebhookPayload // Updated to use the interface
+  payload: WebhookPayload
 ): Promise<boolean> {
   try {
     const response = await axios.post(`${webhookUrl}/${channelId}`, payload, {
@@ -248,7 +249,7 @@ Provide analysis including:
             .replace(/Root Cause/gi, "🔍 Root Cause")
             .replace(/Suggested Fix/gi, "🔧 Suggested Fix")
             .replace(/Prevention Tips/gi, "🛡️ Prevention Tips")
-            .replace(/General Notes/gi, "📋 General Notes") // Added general notes emoji
+            .replace(/General Notes/gi, "📋 General Notes")
             .replace(/High severity/gi, "High severity 🚨")
             .replace(/Medium severity/gi, "Medium severity ⚠️")
             .replace(/Low severity/gi, "Low severity ℹ️")
