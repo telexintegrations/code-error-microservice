@@ -1,13 +1,10 @@
-/**
- * Local version
- */
-
 import * as zmq from "zeromq";
 import axios from "axios";
 import { ProcessedError } from "../controllers/errorController";
 import { ENV_CONFIG } from "../utils/envConfig";
 import { categorizeError } from "../services/categorizationService";
-import { mastra } from "../mastra"; // Import mastra instance
+import { errorAnalysisAgent } from "../mastra/agents/errorAnalysisAgent";
+import { CoreMessage } from "@mastra/core";
 
 // Define an interface for the error object structure
 interface ErrorObject {
@@ -237,36 +234,28 @@ ${errorSummary}`;
         // Then proceed with AI analysis
         let aiAnalysis = "No analysis available";
         try {
-          const analysisPrompt = {
-            messages: [
-              {
-                role: "user",
-                content: `Analyze these errors:
-Type: ${parsedMessage.type}
-Timestamp: ${parsedMessage.timestamp}
-Errors: ${JSON.stringify(parsedMessage.errors, null, 2)}
-
-Provide analysis including:
-1. Error patterns
-2. Root cause
-3. Suggested fixes
-4. Prevention tips`,
-              },
-            ],
-          };
-
-          const aiResponse = await axios.post(
-            `${ENV_CONFIG.AI_SERVER_URL}/api/agents/errorAnalysisAgent/generate`,
-            analysisPrompt,
+          const analysisPrompt: CoreMessage[] = [
             {
-              headers: {
-                "Content-Type": "application/json",
-              },
-            }
-          );
+              role: "user",
+              content: `Analyze these errors:
+                          Type: ${parsedMessage.type}
+                          Timestamp: ${parsedMessage.timestamp}
+                          Errors: ${JSON.stringify(parsedMessage.errors, null, 2)}
+
+                          Provide analysis including:
+                          1. Error patterns
+                          2. Root cause
+                          3. Suggested fixes
+                          4. Prevention tips`,
+            },
+          ];
+
+          const agentGenerate =
+            await errorAnalysisAgent.generate(analysisPrompt);
+          const agentGeneratedText = agentGenerate.text;
 
           // Clean up the AI response by removing markdown and adding emojis
-          aiAnalysis = aiResponse.data.text || aiAnalysis;
+          aiAnalysis = agentGeneratedText || aiAnalysis;
           aiAnalysis = aiAnalysis
             .replace(/^#+ /gm, "") // Remove markdown headers
             .replace(/\*\*/g, "") // Remove bold syntax
@@ -282,21 +271,21 @@ Provide analysis including:
             .replace(/Low severity/gi, "Low severity ℹ️")
             .trim();
 
-          console.log("🤖 AI Analysis:", aiResponse.data);
+          console.log("🤖 AI Analysis:", aiAnalysis);
 
           await delay(500);
 
           const followUpMessage = `🤖 Error Analysis Report
 
-Type: ${parsedMessage.type}
-Time: ${formattedTime}
-Overall Severity: ${overallSeverity} ${severityEmoji}
+                      Type: ${parsedMessage.type}
+                      Time: ${formattedTime}
+                      Overall Severity: ${overallSeverity} ${severityEmoji}
 
-Errors:
-${errorSummary}
+                      Errors:
+                      ${errorSummary}
 
-AI Analysis:
-${aiAnalysis}`;
+                      AI Analysis:
+                      ${aiAnalysis}`;
 
           const followUpPayload: WebhookPayload = {
             event_name: "Code Error Monitor Agent",

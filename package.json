@@ -4,7 +4,7 @@
   "main": "index.js",
   "scripts": {
     "build": "tsc",
-    "dev": "nodemon --exec ts-node src/index.ts",
+    "dev": "nodemon --exec 'tsx' src/index.ts",
     "start": "node dist/index.js",
     "mastra:dev": "mastra dev",
     "start:prod": "pm2 startOrReload ecosystem.config.json"
@@ -16,14 +16,14 @@
   "dependencies": {
     "@ai-sdk/google": "^1.1.19",
     "@ai-sdk/openai": "^1.2.0",
-    "@mastra/core": "^0.6.4",
+    "@mastra/core": "^0.4.4",
     "@prisma/client": "^6.5.0",
     "@types/cors": "^2.8.17",
     "axios": "^1.8.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
-    "mastra": "^0.4.3",
+    "mastra": "^0.2.8",
     "node-fetch": "^3.3.2",
     "pm2": "^6.0.5",
     "zeromq": "^6.3.0",

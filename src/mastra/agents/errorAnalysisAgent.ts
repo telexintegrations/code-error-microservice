@@ -1,5 +1,5 @@
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
-import { Agent } from "@mastra/core"; // Changed from "@mastra/core/agent" to "@mastra/core"
+import { Agent } from "@mastra/core/agent";
 
 const google = createGoogleGenerativeAI({
   apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
