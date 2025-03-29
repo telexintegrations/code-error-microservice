@@ -9,7 +9,6 @@ dotenv.config();
 
 const app = express();
 app.use(express.json());
-
 app.use(requestLogger);
 
 app.use(
@@ -19,6 +18,8 @@ app.use(
     allowedHeaders: ["Content-Type"],
   })
 );
+
+// Export the CORS options for use in other parts of the application
 
 app.use(cors());
 app.use("/api", errorRoutes);
