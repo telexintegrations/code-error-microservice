@@ -99,26 +99,41 @@ Provide analysis including:
       aiAnalysis = { error: "AI analysis unavailable" };
     }
 
-    // Enrich each error with a more friendly message (removing detailed stack traces).
-    const enrichedErrors: ErrorItem[] = errors.map((err: ErrorItem) => {
-      const severity = categorizeError(err.message);
-      let emoji: string;
-      switch (severity) {
-        case "High":
-          emoji = "🚨";
-          break;
-        case "Medium":
-          emoji = "🔔";
-          break;
-        default:
-          emoji = "ℹ️";
-          break;
+    // Ensure errors are in the correct format
+    const normalizedErrors = errors.map((err: ErrorItem) => ({
+      message: typeof err === "string" ? err : err.message,
+      stack: err.stack || "",
+      readableMessage: err.readableMessage || "",
+    }));
+
+    // Enrich each error with a more friendly message
+    const enrichedErrors: ErrorItem[] = normalizedErrors.map(
+      (err: ErrorItem, index: number) => {
+        const severity = categorizeError(err.message);
+        let emoji: string;
+        switch (severity) {
+          case "High":
+            emoji = "🚨";
+            break;
+          case "Medium":
+            emoji = "🔔";
+            break;
+          default:
+            emoji = "ℹ️";
+            break;
+        }
+        return {
+          ...err,
+          readableMessage: `${emoji} Test Error [${index + 1}]: ${err.message}`,
+        };
       }
-      return {
-        ...err,
-        readableMessage: `${emoji} ${severity} severity error: ${err.message}`,
-      };
-    });
+    );
+
+    const processedError: ProcessedError = {
+      type: type || "errorBatch",
+      errors: enrichedErrors,
+      timestamp: timestamp || new Date().toISOString(),
+    };
 
     // Determine the highest severity among reported errors.
     const highestSeverity = enrichedErrors

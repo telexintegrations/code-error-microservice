@@ -88,8 +88,21 @@ async function delay(ms: number): Promise<void> {
 function createErrorSummary(errors: ErrorObject[]): string {
   return errors
     .map((err: ErrorObject, index: number) => {
-      const message = err.readableMessage || err.message || "N/A";
-      return `  ${index + 1}. ${message}`;
+      // Use the readableMessage if available, otherwise create one
+      if (!err.readableMessage) {
+        const severity = categorizeError(err.message || "");
+        let emoji = "️ℹ️";
+        switch (severity.toLowerCase()) {
+          case "high":
+            emoji = "🚨";
+            break;
+          case "medium":
+            emoji = "⚠️";
+            break;
+        }
+        err.readableMessage = `${emoji} Test Error [${index + 1}]: ${err.message}`;
+      }
+      return `${index + 1}. ${err.readableMessage}`;
     })
     .join("\n");
 }
@@ -157,6 +170,20 @@ async function initializeServer() {
           continue;
         }
 
+        // Normalize the errors
+        parsedMessage.errors = parsedMessage.errors.map(
+          (err: any, index: number) => {
+            const errorObj = typeof err === "string" ? { message: err } : err;
+            return {
+              message: errorObj.message || "Unknown error",
+              stack: errorObj.stack || "",
+              readableMessage:
+                errorObj.readableMessage ||
+                `Test Error [${index + 1}]: ${errorObj.message}`,
+            };
+          }
+        );
+
         const errorSummary = createErrorSummary(parsedMessage.errors);
         const formattedTime = formatTimestamp(parsedMessage.timestamp);
         const overallSeverity =
@@ -182,7 +209,7 @@ async function initializeServer() {
         // Send initial error report first and wait for confirmation
         const initialMessage = `🚨 New Error Report
 
-Type: ${parsedMessage.type}
+Type: ${parsedMessage.type || "errorBatch"}
 Time: ${formattedTime}
 Overall Severity: ${overallSeverity} ${severityEmoji}
 
