@@ -1,11 +1,9 @@
 import express from "express";
-import dotenv from "dotenv";
 import cors from "cors";
 import requestLogger from "./middlewares/requestLogger";
 import errorRoutes from "./routes/errorRoutes";
 import integrationRoutes from "./routes/integrations";
 import tickRoute from "./routes/tick";
-dotenv.config();
 
 const app = express();
 app.use(express.json());
