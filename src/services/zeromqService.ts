@@ -3,6 +3,8 @@ import axios from "axios";
 import { ProcessedError } from "../controllers/errorController";
 import { ENV_CONFIG } from "../utils/envConfig";
 import { categorizeError } from "../services/categorizationService";
+import { setLastProcessedError } from "../utils/sharedState";
+import { cleanMarkdown } from "../utils/markdownCleaner";
 import { errorAnalysisAgent } from "../mastra/agents/errorAnalysisAgent";
 import { CoreMessage } from "@mastra/core";
 
@@ -203,116 +205,57 @@ async function initializeServer() {
 
         const severityEmoji = getSeverityEmoji(overallSeverity);
 
-        // Send initial error report first and wait for confirmation
-        const initialMessage = `🚨 New Error Report
+        // We're not generating AI analysis automatically anymore
+        // Users can ask questions directly about the errors
+        console.log("\n\n💬 Sending Error Report to channel");
+
+        // Send a single message with both error information and interaction instructions
+        const errorMessage = `🚨 Runtime Error Report
 
 Type: ${parsedMessage.type || "errorBatch"}
 Time: ${formattedTime}
 Overall Severity: ${overallSeverity} ${severityEmoji}
 
 Errors:
-${errorSummary}`;
+${errorSummary}
 
-        const initialPayload: WebhookPayload = {
+How to interact with me:
+
+• Ask specific questions like "What's causing this error?" or "How do I fix it?"
+• For general runtime error help: "@codeError How to handle promise rejections?"
+• To scan your codebase for runtime errors: "@codeError scan my codebase"
+
+I work best with direct, specific questions about errors!`;
+
+        const errorPayload: WebhookPayload = {
           event_name: "Code Error Monitor Agent",
-          message: initialMessage,
+          message: cleanMarkdown(errorMessage),
           status: "error",
           username: "Code Error Agent",
         };
 
-        const initialSent = await sendToWebhook(
-          parsedMessage.channelId,
-          initialPayload
-        );
+        // Make sure we're using the channel ID from the incoming message
+        const channelId = parsedMessage.channelId;
+        console.log(`Sending error report to channel ID: ${channelId}`);
 
-        if (!initialSent) {
-          throw new Error("Failed to send initial error report");
+        const sent = await sendToWebhook(channelId, errorPayload);
+
+        if (!sent) {
+          throw new Error("Failed to send error report");
         }
 
-        await delay(1000);
+        // Store the error for the webhook handler to use
+        const processedError: ProcessedError = {
+          type: parsedMessage.type || "errorBatch",
+          errors: parsedMessage.errors,
+          timestamp: formattedTime,
+          priority: overallSeverity,
+        };
 
-        // Then proceed with AI analysis
-        let aiAnalysis = "No analysis available";
-        try {
-          const analysisPrompt: CoreMessage[] = [
-            {
-              role: "user",
-              content: `Analyze these errors:
-                          Type: ${parsedMessage.type}
-                          Timestamp: ${parsedMessage.timestamp}
-                          Errors: ${JSON.stringify(parsedMessage.errors, null, 2)}
+        // Update the shared state with the last processed error
+        setLastProcessedError(processedError);
 
-                          Provide analysis including:
-                          1. Error patterns
-                          2. Root cause
-                          3. Suggested fixes
-                          4. Prevention tips`,
-            },
-          ];
-
-          const agentGenerate =
-            await errorAnalysisAgent.generate(analysisPrompt);
-          const agentGeneratedText = agentGenerate.text;
-
-          // Clean up the AI response by removing markdown and adding emojis
-          aiAnalysis = agentGeneratedText || aiAnalysis;
-          aiAnalysis = aiAnalysis
-            .replace(/^#+ /gm, "") // Remove markdown headers
-            .replace(/\*\*/g, "") // Remove bold syntax
-            .replace(/\n{3,}/g, "\n\n") // Replace multiple newlines
-            .replace(/Error Pattern/gi, "📊 Error Pattern")
-            .replace(/Occurrence Count/gi, "🔢 Occurrence Count")
-            .replace(/Root Cause/gi, "🔍 Root Cause")
-            .replace(/Suggested Fix/gi, "🔧 Suggested Fix")
-            .replace(/Prevention Tips/gi, "🛡️ Prevention Tips")
-            .replace(/General Notes/gi, "📋 General Notes")
-            .replace(/High severity/gi, "High severity 🚨")
-            .replace(/Medium severity/gi, "Medium severity ⚠️")
-            .replace(/Low severity/gi, "Low severity ℹ️")
-            .trim();
-
-          console.log("🤖 AI Analysis:", aiAnalysis);
-
-          await delay(500);
-
-          const followUpMessage = `🤖 Error Analysis Report
-
-                      Type: ${parsedMessage.type}
-                      Time: ${formattedTime}
-                      Overall Severity: ${overallSeverity} ${severityEmoji}
-
-                      Errors:
-                      ${errorSummary}
-
-                      AI Analysis:
-                      ${aiAnalysis}`;
-
-          const followUpPayload: WebhookPayload = {
-            event_name: "Code Error Monitor Agent",
-            message: followUpMessage,
-            status: "success",
-            username: "Code Error Agent",
-          };
-
-          const analysisSent = await sendToWebhook(
-            parsedMessage.channelId,
-            followUpPayload
-          );
-
-          if (!analysisSent) {
-            throw new Error("Failed to send analysis report");
-          }
-
-          await replySocket.send(JSON.stringify({ status: "success" }));
-        } catch (aiError) {
-          console.error("Failed to get AI analysis:", aiError);
-          await replySocket.send(
-            JSON.stringify({
-              status: "error",
-              message: "Failed to get AI analysis",
-            })
-          );
-        }
+        await replySocket.send(JSON.stringify({ status: "success" }));
       } catch (parseError) {
         console.error("Failed to parse message:", parseError);
         await replySocket.send(
