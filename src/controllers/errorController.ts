@@ -102,7 +102,9 @@ Provide analysis including:
         // Unknown format
         aiAnalysis = { text: "AI analysis unavailable" };
       }
-    } catch (aiError) {
+    } catch (error) {
+      const aiError = error as any; // Type assertion for backward compatibility
+
       // Check if it's a rate limit error
       const isRateLimit =
         aiError.response?.status === 429 ||
