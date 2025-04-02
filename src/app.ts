@@ -4,6 +4,8 @@ import requestLogger from "./middlewares/requestLogger";
 import errorRoutes from "./routes/errorRoutes";
 import integrationRoutes from "./routes/integrations";
 import tickRoute from "./routes/tick";
+import webhookRoutes from "./routes/webhookRoutes";
+import agentRoutes from "./routes/agentRoutes";
 
 const app = express();
 app.use(express.json());
@@ -21,8 +23,10 @@ app.use(
 
 app.use(cors());
 app.use("/api", errorRoutes);
+app.use("/api", agentRoutes);
 app.use(integrationRoutes);
 app.use(tickRoute);
+app.use(webhookRoutes);
 
 app.get("/health", (_req, res) => {
   res.json({ status: "running", timestamp: new Date().toISOString() });
