@@ -9,3 +9,9 @@ export const mastra = new Mastra({
     level: "info" as const,
   }),
 });
+
+// Helper function to access the error analysis agent
+export async function generateErrorAnalysis(prompt: any) {
+  // @ts-ignore - Access private property for backward compatibility
+  return await mastra.agents.errorAnalysisAgent.generate(prompt);
+}
