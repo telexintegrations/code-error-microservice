@@ -5,6 +5,7 @@ import { Request, Response, NextFunction } from "express";
 import { categorizeError } from "../services/categorizationService";
 import axios from "axios";
 import { ENV_CONFIG } from "../utils/envConfig";
+import { setLastProcessedError } from "../utils/sharedState";
 
 export interface ProcessedError {
   type: string;
@@ -20,7 +21,7 @@ export interface ErrorItem {
   readableMessage?: string;
 }
 
-let lastProcessedError: ProcessedError | null = null;
+// Last processed error is now managed by sharedState.ts
 
 /**
  * Handles incoming error reports by:
@@ -89,14 +90,46 @@ Provide analysis including:
         "✨ AI Response:",
         JSON.stringify(aiAnalysisResponse.data, null, 2)
       );
-      aiAnalysis = aiAnalysisResponse.data;
+
+      // Handle different response formats
+      if (aiAnalysisResponse.data && aiAnalysisResponse.data.text) {
+        // New format
+        aiAnalysis = aiAnalysisResponse.data;
+      } else if (typeof aiAnalysisResponse.data === "string") {
+        // String format
+        aiAnalysis = { text: aiAnalysisResponse.data };
+      } else {
+        // Unknown format
+        aiAnalysis = { text: "AI analysis unavailable" };
+      }
     } catch (aiError) {
-      console.error(
-        "🚨 AI Analysis failed:",
-        aiError instanceof Error ? aiError.message : "Unknown AI error",
-        aiError
-      );
-      aiAnalysis = { error: "AI analysis unavailable" };
+      // Check if it's a rate limit error
+      const isRateLimit =
+        aiError.response?.status === 429 ||
+        aiError.response?.data?.error === "Rate limit exceeded" ||
+        (aiError.message &&
+          aiError.message.includes("quota") &&
+          aiError.message.includes("exceeded"));
+
+      if (isRateLimit) {
+        console.error(
+          "🚨 AI Analysis failed due to rate limits:",
+          aiError.message || "Rate limit exceeded"
+        );
+        aiAnalysis = {
+          error: "AI analysis unavailable due to rate limits",
+          retryAfter: aiError.response?.data?.retryAfter || 3600, // Default to 1 hour
+        };
+      } else {
+        console.error(
+          "🚨 AI Analysis failed:",
+          aiError instanceof Error ? aiError.message : "Unknown AI error",
+          aiError
+        );
+
+        // No fallback analysis - just report that AI analysis is unavailable
+        aiAnalysis = { error: "AI analysis unavailable" };
+      }
     }
 
     // Ensure errors are in the correct format
@@ -155,12 +188,13 @@ Provide analysis including:
       ? new Date(timestamp).toLocaleString()
       : new Date().toLocaleString();
 
-    lastProcessedError = {
+    // Update the shared state with the last processed error
+    setLastProcessedError({
       type,
       errors: enrichedErrors,
       timestamp: formattedTimestamp,
       priority: highestSeverity,
-    };
+    });
 
     res.status(202).json({
       status: "accepted",
@@ -181,9 +215,4 @@ Provide analysis including:
   }
 };
 
-/**
- * Returns the last processed error report.
- */
-export const getLastProcessedError = (): ProcessedError | null => {
-  return lastProcessedError;
-};
+// getLastProcessedError is now imported from sharedState.ts
