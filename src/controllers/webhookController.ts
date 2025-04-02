@@ -246,7 +246,8 @@ If this is a test error, acknowledge it briefly but focus on practical advice.`,
       // Clean markdown formatting from the response
       const cleanedResponse = cleanMarkdown(responseText);
       await sendWebhookResponse(channel_id, cleanedResponse, thread_id, org_id);
-    } catch (error) {
+    } catch (err) {
+      const error = err as any; // Type assertion for backward compatibility
       console.error("Error calling Gemini API:", error);
 
       // Check if it's a rate limit error
@@ -262,7 +263,7 @@ If this is a test error, acknowledge it briefly but focus on practical advice.`,
         let retryDelay = 3600; // Default to 1 hour
         try {
           if (error.response?.data?.error?.details) {
-            const retryInfo = error.response.data.error.details.find((d) =>
+            const retryInfo = error.response.data.error.details.find((d: any) =>
               d["@type"]?.includes("RetryInfo")
             );
             if (retryInfo && retryInfo.retryDelay) {
