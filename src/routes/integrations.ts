@@ -55,7 +55,7 @@ router.get("/integration-json", (req: Request, res: Response) => {
         },
       ],
       tick_url: `${ENV_CONFIG.SERVER_URL}/tick`,
-      target_url: `${ENV_CONFIG.SERVER_URL}/webhook`,
+      target_url: ENV_CONFIG.WEBHOOK_TARGET_URL,
     },
   };
 
