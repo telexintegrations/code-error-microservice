@@ -1,5 +1,5 @@
 import { Router, Request, Response } from "express";
-import { getLastProcessedError } from "../controllers/errorController.js";
+import { getLastProcessedError } from "../utils/sharedState";
 
 const router = Router();
 
