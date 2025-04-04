@@ -141,9 +141,24 @@ export const handleWebhook = async (req: Request, res: Response) => {
     );
     console.log("🔍 Message relevance check:", messageRelevance);
 
-    // Special handling for @codeError command
-    if (cleanedMessage.toLowerCase().includes("@codeerror")) {
-      await handleCodeErrorCommand(
+    // Check if the message is about the package or installation
+    const lowerMessage = cleanedMessage.toLowerCase();
+    const packageKeywords = [
+      "package",
+      "install",
+      "setup",
+      "error-telex",
+      "error telex",
+      "sdk",
+      "library",
+    ];
+    const isAboutPackage = packageKeywords.some((keyword) =>
+      lowerMessage.includes(keyword)
+    );
+
+    // Special handling for @codeError command or package-related questions
+    if (lowerMessage.includes("@codeerror") || isAboutPackage) {
+      await handleRuntimeErrorAssistance(
         cleanedMessage,
         channel_id,
         thread_id,
@@ -152,28 +167,38 @@ export const handleWebhook = async (req: Request, res: Response) => {
       return;
     }
 
-    // If the message is not relevant to the last error, respond with guidance
+    // Check if the message is relevant to errors
     if (!messageRelevance.shouldRespond) {
-      console.log("🤔 Message not relevant to errors, sending guidance");
+      console.log(
+        "🤔 Message not directly relevant to errors, sending friendly guidance"
+      );
 
-      // Send a response to guide the user
-      const guidanceMessage =
-        "I'm the Code Error Assistant. Here's how you can interact with me:\n\n" +
-        "📋 For Detected Runtime Errors:\n" +
-        "• 'What's causing the TypeError in line 45?'\n" +
-        "• 'How do I fix the unhandled promise rejection?'\n" +
-        "• 'What's the best way to prevent this error in the future?'\n\n" +
-        "🔍 For General Runtime Error Help:\n" +
-        "• '@codeError Why do I get Cannot read property of undefined?'\n" +
-        "• '@codeError How to handle unhandled promise rejections?'\n" +
-        "• '@codeError What causes memory leaks in Node.js?'\n\n" +
-        "🛠️ To Scan Your Codebase for Runtime Errors:\n" +
-        "• '@codeError scan my codebase'\n" +
-        "• '@codeError scan my JavaScript project'\n" +
-        "Note: Our package specifically focuses on runtime errors\n\n" +
-        "I work best with direct, specific questions about errors!";
+      // Prepare a friendly response that acknowledges the user's message
+      const friendlyResponse = `I see your message, but I'm specifically designed to help with JavaScript and TypeScript runtime errors.
 
-      await sendWebhookResponse(channel_id, guidanceMessage, thread_id, org_id);
+I can:
+• Analyze errors detected in your code
+• Answer questions about specific error types
+• Provide guidance on error handling best practices
+• Help you scan your codebase for potential runtime errors
+
+Could you please ask me something related to runtime errors? For example, you could ask about handling promise rejections, fixing TypeError issues, or how to install our error monitoring package.`;
+
+      // Add the response to the chat history
+      const assistantMessage: ChatMessage = {
+        role: "assistant",
+        content: friendlyResponse,
+        timestamp: new Date(),
+      };
+      ChatHistoryService.addMessage(channel_id, assistantMessage);
+
+      // Send the friendly response
+      await sendWebhookResponse(
+        channel_id,
+        friendlyResponse,
+        thread_id,
+        org_id
+      );
       return;
     }
 
@@ -186,7 +211,15 @@ export const handleWebhook = async (req: Request, res: Response) => {
           content: `You are a runtime error expert assistant. Focus specifically on JavaScript and TypeScript runtime errors.
           Provide concise, helpful answers about runtime errors, their causes, and how to fix them.
           Include code examples when relevant. Keep responses under 5 paragraphs.
-          Only answer questions related to runtime errors - for other topics, politely redirect to runtime error topics.`,
+
+          Your capabilities include:
+          1. Analyzing runtime errors from user applications
+          2. Providing explanations and fixes for specific errors
+          3. Offering general guidance on error handling best practices
+          4. Helping users scan their codebases for potential runtime errors with the Error-Telex package
+
+          When users ask what you can do, always mention ALL of these capabilities, especially codebase scanning.
+          For topics unrelated to runtime errors, politely acknowledge the question and redirect to runtime error topics.`,
         },
         {
           role: "user",
@@ -199,16 +232,21 @@ Errors: ${JSON.stringify(lastError?.errors || [], null, 2)}
 
 User's question: ${cleanedMessage}
 
-Based on the error information above, provide a VERY SHORT and direct response to the user's question. Be extremely concise.
+Based on the error information above, provide a friendly and direct response to the user's question. Always acknowledge their question first.
 
-Include only:
-1. What's causing the error (1 sentence)
-2. How to fix it (with minimal code example if needed)
-3. One prevention tip
+Include:
+1. Brief acknowledgment of their question
+2. What's causing the error (1 sentence)
+3. How to fix it (with code example if needed)
+4. One prevention tip
 
 Keep your entire response under 5 sentences. Use plain text only, no markdown formatting.
 
-If this is a test error, acknowledge it briefly but focus on practical advice.`,
+If the question is about what you can do or your capabilities, always mention that you can:
+1. Analyze runtime errors
+2. Provide explanations and fixes
+3. Offer error handling best practices
+4. Help scan codebases for potential errors with the Error-Telex package`,
         },
       ];
 
@@ -333,7 +371,7 @@ If this is a test error, acknowledge it briefly but focus on practical advice.`,
 function checkMessageRelevance(
   message: string,
   lastError: ProcessedError | null,
-  channelId: string
+  _channelId: string // Prefix with underscore to indicate it's intentionally unused
 ): {
   mentionsBot: boolean;
   containsErrorKeywords: boolean;
@@ -427,10 +465,11 @@ function checkMessageRelevance(
 }
 
 /**
- * Handle the @codeError command for runtime error assistance
- * This is a more general AI for runtime errors, not just a code scanner
+ * Handle runtime error assistance and package installation questions
+ * Processes both @codeError commands and natural language questions
+ * about installation, scanning, and runtime errors
  */
-async function handleCodeErrorCommand(
+async function handleRuntimeErrorAssistance(
   message: string,
   channel_id: string,
   thread_id: string | null,
@@ -439,15 +478,32 @@ async function handleCodeErrorCommand(
   try {
     console.log("🔍 Handling @codeError command");
 
-    // Remove the @codeError part to get the actual question
-    const userQuestion = message.replace(/@codeerror/i, "").trim();
+    // Remove the @codeError part if present to get the actual question
+    let userQuestion = message;
+    if (message.toLowerCase().includes("@codeerror")) {
+      userQuestion = message.replace(/@codeerror/i, "").trim();
+    }
 
-    // Check if the user is asking about a specific error or wants a code scan
-    if (
-      userQuestion.toLowerCase().includes("scan") &&
-      (userQuestion.toLowerCase().includes("code") ||
-        userQuestion.toLowerCase().includes("codebase"))
-    ) {
+    // Check if the user is asking about scanning their codebase or installing the package
+    const lowerQuestion = userQuestion.toLowerCase();
+    const isAboutScanning =
+      lowerQuestion.includes("scan") &&
+      (lowerQuestion.includes("code") || lowerQuestion.includes("codebase"));
+
+    const packageKeywords = [
+      "package",
+      "install",
+      "setup",
+      "error-telex",
+      "error telex",
+      "sdk",
+      "library",
+    ];
+    const isAboutPackage = packageKeywords.some((keyword) =>
+      lowerQuestion.includes(keyword)
+    );
+
+    if (isAboutScanning || isAboutPackage) {
       // Provide information about Error-Telex package
       const packageInfo = `🦾 Error-Telex: AI-Powered Error Monitoring
 
@@ -538,6 +594,34 @@ What would you like to know about runtime errors?`;
  */
 async function generateRuntimeErrorResponse(question: string): Promise<string> {
   try {
+    // Check if the question is about the package or installation
+    const lowerQuestion = question.toLowerCase();
+    const packageKeywords = [
+      "package",
+      "install",
+      "setup",
+      "error-telex",
+      "error telex",
+      "sdk",
+      "library",
+    ];
+    const isAboutPackage = packageKeywords.some((keyword) =>
+      lowerQuestion.includes(keyword)
+    );
+
+    if (isAboutPackage) {
+      // If it's about the package, provide the installation info directly
+      return `To install the Error-Telex package for scanning your codebase:
+
+1. Run: npm install error-telex
+
+2. Add to your entry file:
+   import { initializeTelexSDK } from "error-telex";
+   await initializeTelexSDK({ channelId: "your-telex-channel-id" });
+
+The package will automatically detect runtime errors in your application and send them to your Telex channel with AI-generated fix suggestions.`;
+    }
+
     // Use the AI service to generate a response
     const prompt = [
       {
@@ -545,11 +629,27 @@ async function generateRuntimeErrorResponse(question: string): Promise<string> {
         content: `You are a runtime error expert assistant. Focus specifically on JavaScript and TypeScript runtime errors.
         Provide concise, helpful answers about runtime errors, their causes, and how to fix them.
         Include code examples when relevant. Keep responses under 5 paragraphs.
-        Only answer questions related to runtime errors - for other topics, politely redirect to runtime error topics.`,
+
+        Your capabilities include:
+        1. Analyzing runtime errors from user applications
+        2. Providing explanations and fixes for specific errors
+        3. Offering general guidance on error handling best practices
+        4. Helping users scan their codebases for potential runtime errors with the Error-Telex package
+
+        When users ask what you can do, always mention ALL of these capabilities, especially codebase scanning.
+        For topics unrelated to runtime errors, politely acknowledge the question and redirect to runtime error topics.`,
       },
       {
         role: "user",
-        content: question,
+        content: `${question}
+
+Provide a friendly and helpful response. Always acknowledge the user's question first.
+
+If the question is about what you can do or your capabilities, always mention that you can:
+1. Analyze runtime errors
+2. Provide explanations and fixes
+3. Offer error handling best practices
+4. Help scan codebases for potential errors with the Error-Telex package`,
       },
     ];
 
